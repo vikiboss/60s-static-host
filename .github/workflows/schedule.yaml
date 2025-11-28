@@ -39,14 +39,6 @@ jobs:
           path: .chromium
           key: chromium-build-v1
 
-      # 缓存字体
-      - name: Cache Fonts
-        id: cache-fonts
-        uses: actions/cache@v3
-        with:
-          path: .fonts
-          key: fonts-noto-v1
-
       # 如果 Chromium 缓存不存在，则下载
       - name: Download Chromium if not cached
         if: steps.cache-chromium.outputs.cache-hit != 'true'
@@ -55,56 +47,6 @@ jobs:
           curl -L https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1181205/chrome-linux.zip -o chrome-linux.zip
           unzip chrome-linux.zip -d .chromium
           rm chrome-linux.zip
-
-      # 如果字体缓存不存在，则下载并安装到缓存文件夹
-      - name: Download Fonts if not cached
-        if: steps.cache-fonts.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p .fonts
-          sudo apt-get update
-          # 安装 CJK 字体（包含所有语言变体）
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji fonts-freefont-ttf
-          # 拷贝字体到缓存目录
-          cp -r /usr/share/fonts/* .fonts/
-
-      # 安装字体到系统并配置简体中文优先级
-      - name: Install Cached Fonts
-        run: |
-          sudo mkdir -p /usr/share/fonts/custom
-          sudo cp -r .fonts/* /usr/share/fonts/custom/
-
-          # 创建 fontconfig 配置，优先使用简体中文字形
-          sudo mkdir -p /etc/fonts/conf.d
-          sudo tee /etc/fonts/local.conf > /dev/null <<EOF
-          <?xml version="1.0"?>
-          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-          <fontconfig>
-            <!-- 设置简体中文为默认 CJK 语言 -->
-            <match target="pattern">
-              <test name="lang">
-                <string>zh-cn</string>
-              </test>
-              <test name="family">
-                <string>sans-serif</string>
-              </test>
-              <edit name="family" mode="prepend">
-                <string>Noto Sans CJK SC</string>
-              </edit>
-            </match>
-
-            <!-- 默认使用简体中文变体 -->
-            <match target="pattern">
-              <test name="family">
-                <string>Noto Sans CJK</string>
-              </test>
-              <edit name="family" mode="prepend" binding="strong">
-                <string>Noto Sans CJK SC</string>
-              </edit>
-            </match>
-          </fontconfig>
-          EOF
-
-          sudo fc-cache -fv
 
       - name: Fetch data & Update & Render
         env:

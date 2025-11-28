@@ -48,7 +48,6 @@ export function localeTime(ts: number | string | Date = Date.now()) {
     hour: '2-digit',
     hourCycle: 'h23',
     minute: '2-digit',
-    second: '2-digit',
     timeZone: 'Asia/Shanghai',
   })
 
