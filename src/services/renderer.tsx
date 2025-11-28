@@ -16,8 +16,8 @@ class RenderService {
   async prepare(): Promise<void> {
     log('Prepare renderer...')
 
-    // 预加载字体为 base64
-    await this.#loadFonts()
+    // 生成字体 CSS（使用本地文件路径）
+    this.#loadFonts()
 
     const executablePath = IS_IN_CI
       ? './.chromium/chrome-linux/chrome'
@@ -40,29 +40,23 @@ class RenderService {
     })
   }
 
-  async #loadFonts(): Promise<void> {
+  #loadFonts(): void {
     log('Loading fonts...')
     const fontFaces: string[] = []
 
     for (const font of FONTS) {
       const fontPath = path.join(PROJECT_ROOT, 'assets', font.file)
-      try {
-        const fontBuffer = await fs.readFile(fontPath)
-        const base64 = fontBuffer.toString('base64')
-        const type = font.file.endsWith('.otf') ? 'opentype' : 'truetype'
+      const type = font.file.endsWith('.otf') ? 'opentype' : 'truetype'
 
-        fontFaces.push(`
-          @font-face {
-            font-family: '${font.name}';
-            src: url('data:font/${type};base64,${base64}') format('${type}');
-            font-weight: normal;
-            font-style: normal;
-          }
-        `)
-        log(`  ✓ Loaded font: ${font.name}`)
-      } catch (error) {
-        console.warn(`  ⚠️  Failed to load font ${font.name}:`, error)
-      }
+      fontFaces.push(`
+        @font-face {
+          font-family: '${font.name}';
+          src: url('file://${fontPath}') format('${type}');
+          font-weight: normal;
+          font-style: normal;
+        }
+      `)
+      log(`  ✓ Configured font: ${font.name} -> ${fontPath}`)
     }
 
     this.#fontFaceCSS = fontFaces.join('\n')
@@ -94,10 +88,12 @@ class RenderService {
     log('Set viewport...')
     await page.setViewport({ deviceScaleFactor: 2, height: 2400, width: 1200 })
 
-    await fs.writeFile('./debug-html.html', html)
+    // 将 HTML 写入临时文件，使用 file:// 协议加载以支持本地字体
+    const tempHtmlPath = path.join(PROJECT_ROOT, `.temp-render-${Date.now()}.html`)
+    await fs.writeFile(tempHtmlPath, html)
 
-    log('Set html content...')
-    await page.setContent(html)
+    log('Load html file...')
+    await page.goto(`file://${tempHtmlPath}`, { waitUntil: 'networkidle0' })
 
     log('Wait for main selector...')
     await page.waitForSelector('#main')
@@ -114,6 +110,8 @@ class RenderService {
 
     log('Close browser context...')
     await context.close()
+
+    await fs.unlink(tempHtmlPath)
 
     return Buffer.from(screenshot)
   }

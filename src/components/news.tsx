@@ -20,6 +20,10 @@ const formatDate = (dateStr: string) => {
   return { month: date.getMonth() + 1, day: date.getDate(), year: date.getFullYear() }
 }
 
+function Slash() {
+  return <span className='mx-1 text-stone-500/36'>/</span>
+}
+
 export function NewsCard({ data }: { data: NewsData }) {
   const { month, day, year } = formatDate(data.date)
   const lunarDate = SolarDay.fromYmd(year, month, day).getLunarDay().toString().replace('农历', '')
@@ -73,10 +77,10 @@ export function NewsCard({ data }: { data: NewsData }) {
       <div className='px-8 py-5 bg-gradient-to-b from-white/80 to-stone-50/60 relative'>
         <div className='absolute top-4 right-6 w-8 h-px bg-gradient-to-r from-amber-200/30 to-transparent'></div>
 
-        <div className='space-y-2'>
+        <div className='space-y-3'>
           {data.news.map((item, index) => (
-            <div key={index} className='flex items-start space-x-4 py-1 relative'>
-              <div className='flex-shrink-0 w-4 h-4 rounded-full bg-stone-200/60 flex items-center justify-center text-[10px] text-stone-500 border border-stone-300/60 mt-1'>
+            <div key={index} className='flex space-x-4'>
+              <div className='flex-shrink-0 w-4 h-4 rounded-full bg-stone-200/60 flex items-center justify-center text-[10px] text-stone-500 border border-stone-300/60 translate-y-[3px]'>
                 {String(index + 1)}
               </div>
               <div className='flex-1'>
@@ -89,10 +93,10 @@ export function NewsCard({ data }: { data: NewsData }) {
         </div>
       </div>
 
-      <div className='relative bg-amber-50/50 border-t border-stone-300/50 px-8 py-6'>
+      <div className='relative bg-amber-50/50 border-t border-stone-300/50 px-8 py-4'>
         <div className='text-center relative'>
           <div className='relative inline-block'>
-            <p className='text-stone-700 leading-relaxed text-center px-6 italic relative z-10'>
+            <p className='text-stone-700 leading-relaxed text-center px-4 italic relative z-10'>
               <span className='font-bold text-amber-700/32 mx-2'>「</span>
               {data.tip}
               <span className='font-bold text-amber-700/32 mx-2'>」</span>
@@ -108,16 +112,36 @@ export function NewsCard({ data }: { data: NewsData }) {
 
           <div className='text-stone-500 text-left space-y-1.5'>
             <div className='tracking-wide'>
-              新闻联播 / 人民日报 / 新华网 / 腾讯新闻 / 环球网 / 澎湃新闻
+              新闻联播
+              <Slash />
+              人民日报
+              <Slash />
+              新华网
+              <Slash />
+              腾讯新闻
+              <Slash />
+              环球网
+              <Slash />
+              澎湃新闻
             </div>
             <div className='tracking-wide'>
-              共 {data.news.length} 条国内外精选新闻 / 更新于 {localeTime(data.created_at)}
+              共 {data.news.length} 条国内外精选新闻
+              <Slash />
+              更新于 {localeTime(data.created_at)}
             </div>
           </div>
 
           <div className='text-stone-500 text-right space-y-1.5'>
             <div className='tracking-wide'>@GitHub vikiboss/60s</div>
-            <div className='tracking-wide'>React / TailwindCSS / Puppeteer / 抖音美好体</div>
+            <div className='tracking-wide'>
+              React 界面
+              <Slash />
+              TailwindCSS 样式
+              <Slash />
+              Puppeteer 渲染
+              <Slash />
+              抖音美好体
+            </div>
           </div>
         </div>
       </div>
