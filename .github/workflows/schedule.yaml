@@ -1,168 +1,19 @@
-name: schedule
+# Schedule Workflows
+
+# This is a sample schedule workflow file
+# It runs at 12:00 PM every day
+
+name: Daily CI
 
 on:
   schedule:
-    # 北京时间 00:00-10:00 每 10 分钟运行一次 (UTC 16:00-02:00)
-    - cron: "*/10 16-23,0-2 * * *"
-
-  workflow_dispatch:
-    inputs:
-      date:
-        description: "Optional date in YYYY-MM-DD format (default: today)"
-        required: false
-        type: string
-
-# 防止多个工作流同时运行，避免 git push 冲突
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
-# 最小权限原则
-permissions:
-  contents: write
+    - cron: '0 12 * * *'
 
 jobs:
-  fetch:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    env:
-      TZ: Asia/Shanghai
-      WECHAT_TOKEN: ${{ secrets.WECHAT_TOKEN }}
-      WECHAT_COOKIE: ${{ secrets.WECHAT_COOKIE }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Determine target date
-        id: date
-        run: |
-          if [ -n "${{ github.event.inputs.date }}" ]; then
-            TARGET_DATE="${{ github.event.inputs.date }}"
-            echo "Using manually specified date: $TARGET_DATE"
-          else
-            TARGET_DATE=$(date '+%Y-%m-%d')
-            echo "Using today's date (Shanghai timezone): $TARGET_DATE"
-          fi
-          echo "date=$TARGET_DATE" >> $GITHUB_OUTPUT
-
-      - name: Check if data already exists
-        id: check-data
-        run: |
-          TARGET_DATE="${{ steps.date.outputs.date }}"
-          JSON_FILE="static/60s/${TARGET_DATE}.json"
-          PNG_FILE="static/images/${TARGET_DATE}.png"
-
-          if [ -f "$JSON_FILE" ] && [ -f "$PNG_FILE" ]; then
-            echo "✅ Data for $TARGET_DATE already exists, skipping update"
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            if [ ! -f "$JSON_FILE" ]; then
-              echo "📄 Missing JSON file: $JSON_FILE"
-            fi
-            if [ ! -f "$PNG_FILE" ]; then
-              echo "🖼️  Missing PNG file: $PNG_FILE"
-            fi
-            echo "📥 Proceeding with data fetch and generation"
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Setup Bun
-        if: steps.check-data.outputs.exists == 'false'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: ".bun-version"
-
-      - name: Cache Bun dependencies
-        if: steps.check-data.outputs.exists == 'false'
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        if: steps.check-data.outputs.exists == 'false'
-        run: bun install --frozen-lockfile
-
-      - name: Cache Chromium
-        if: steps.check-data.outputs.exists == 'false'
-        id: cache-chromium
-        uses: actions/cache@v4
-        with:
-          path: .chromium
-          key: chromium-1181205-v2
-          restore-keys: chromium-
-
-      - name: Download Chromium
-        if: steps.check-data.outputs.exists == 'false' && steps.cache-chromium.outputs.cache-hit != 'true'
-        run: |
-          echo "📦 Downloading Chromium..."
-          mkdir -p .chromium
-          curl -fsSL https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1181205/chrome-linux.zip -o chrome-linux.zip
-          unzip -q chrome-linux.zip -d .chromium
-          rm chrome-linux.zip
-          echo "✅ Chromium downloaded successfully"
-
-      - name: Fetch data & Render image
-        if: steps.check-data.outputs.exists == 'false'
-        run: |
-          TARGET_DATE="${{ steps.date.outputs.date }}"
-
-          echo "🚀 Starting data fetch for $TARGET_DATE"
-
-          if [ -n "${{ github.event.inputs.date }}" ]; then
-            bun run update --date="$TARGET_DATE"
-          else
-            bun run update
-          fi
-
-          echo "✅ Data fetch completed"
-
-      - name: Commit and push changes
-        if: steps.check-data.outputs.exists == 'false'
-        run: |
-          TARGET_DATE="${{ steps.date.outputs.date }}"
-
-          # Configure git
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          # Stage all changes
-          git add -A
-
-          # Check if there are changes to commit
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "📝 Committing changes for $TARGET_DATE"
-            git commit -m "chore: [bot] update $TARGET_DATE data"
-
-            echo "⬆️  Pushing to remote..."
-            git push
-
-            echo "✅ Changes pushed successfully"
-          else
-            echo "ℹ️  No changes to commit"
-          fi
-
-      - name: Summary
-        if: always()
-        run: |
-          TARGET_DATE="${{ steps.date.outputs.date }}"
-          DATA_EXISTS="${{ steps.check-data.outputs.exists }}"
-
-          echo "### Workflow Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target Date**: $TARGET_DATE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Data Existed**: $DATA_EXISTS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$DATA_EXISTS" = "true" ]; then
-            echo "- **Status**: ✅ Skipped (data already exists)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Status**: 🎉 Data generated successfully" >> $GITHUB_STEP_SUMMARY
-          fi
+        uses: actions/checkout@v2
+      - name: Run tests
+        run: npm test
