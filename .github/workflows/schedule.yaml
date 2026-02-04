@@ -1,19 +1,87 @@
-# Schedule Workflows
-
-# This is a sample schedule workflow file
-# It runs at 12:00 PM every day
-
-name: Daily CI
+name: schedule
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    # - cron: '*/10 0-10 * * *'
+
+    # 根据目标北京时间倒推 8 小时设置 UTC 时间
+    - cron: "*/10 16-23,0-2 * * *"
+
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Optional data execution date in YYYY-MM-DD format."
+        required: false
 
 jobs:
-  build:
+  fetch:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Run tests
-        run: npm test
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # 缓存 Chromium
+      - name: Cache Chromium
+        id: cache-chromium
+        uses: actions/cache@v3
+        with:
+          path: .chromium
+          key: chromium-build-v1
+
+      # 如果 Chromium 缓存不存在，则下载
+      - name: Download Chromium if not cached
+        if: steps.cache-chromium.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .chromium
+          curl -L https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1181205/chrome-linux.zip -o chrome-linux.zip
+          unzip chrome-linux.zip -d .chromium
+          rm chrome-linux.zip
+
+      - name: Fetch data & Update & Render
+        env:
+          WECHAT_TOKEN: ${{ secrets.WECHAT_TOKEN }}
+          WECHAT_COOKIE: ${{ secrets.WECHAT_COOKIE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # config git
+          git config --local user.email "bot@github.com"
+          git config --local user.name "bot"
+          git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+          # pull latest code
+          git pull --rebase
+
+          # run update script with an optional date, if provided
+          if [ -z "${{ github.event.inputs.date }}" ]; then
+            bun run update
+          else
+            bun run update --date=${{ github.event.inputs.date }}
+          fi
+
+          # Add all changes to staging
+          git add -A .
+
+          # check if there are changes (including new files)
+          if [ -n "$(git status --porcelain)" ]; then
+            # if there are changes, commit & push
+            if [ -z "${{ github.event.inputs.date }}" ]; then
+                COMMIT_DATE=$(date '+%Y-%m-%d')
+            else
+                COMMIT_DATE=${{ github.event.inputs.date }}
+            fi
+            git commit -m "chore: [bot] update $COMMIT_DATE data"
+            git push
+          else
+            echo "No changes to commit, skipping push."
+          fi
