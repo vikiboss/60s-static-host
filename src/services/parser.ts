@@ -67,7 +67,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     return EMPTY_RESULT
   }
 
-  const model = 'gemini-2.5-flash'
+  const model = 'gemini-3.5-flash'
 
   debug('model', model)
 
@@ -90,7 +90,10 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
 
   const options = {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      '"x-goog-api-key': apiKey,
+      'content-type': 'application/json'
+    },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: prompt }] },
       contents: [{ role: 'user', parts: [{ text: mainHtml }] }],
