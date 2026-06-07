@@ -91,7 +91,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
   const options = {
     method: 'POST',
     headers: {
-      '"x-goog-api-key': apiKey,
+      'x-goog-api-key': apiKey,
       'content-type': 'application/json'
     },
     body: JSON.stringify({
