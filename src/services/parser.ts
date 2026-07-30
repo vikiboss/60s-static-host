@@ -67,10 +67,6 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     return EMPTY_RESULT
   }
 
-  const model = 'gemini-3.5-flash'
-
-  debug('model', model)
-
   const html = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
     .then(e => e.text())
     .catch(() => fetch(url).then(e => e.text()))
@@ -92,7 +88,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     method: 'POST',
     headers: {
       'x-goog-api-key': apiKey,
-      'content-type': 'application/json'
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: prompt }] },
@@ -100,6 +96,10 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
       generationConfig,
     }),
   }
+
+  const model = 'gemini-3.6-flash'
+
+  debug('model', model)
 
   const thirdApi = `https://gemini.viki.moe/v1beta/models/${model}:generateContent?key=${apiKey}`
   const officialApi = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
@@ -125,7 +125,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
 
   debug(
     'LLM request cost (ms)',
-    (Math.round((performance.now() - timeStart) * 1000) / 1000).toLocaleString('zh-CN')
+    (Math.round((performance.now() - timeStart) * 1000) / 1000).toLocaleString('zh-CN'),
   )
 
   // log('Gemini response:', JSON.stringify(response, null, 2))

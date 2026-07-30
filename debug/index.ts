@@ -1,7 +1,7 @@
 import { parsePostViaLLM } from '../src/services/parser'
 
 const url =
-  'https://mp.weixin.qq.com/s/eSC4edfklP4WaBvuezkD4w'
+  'https://mp.weixin.qq.com/s/J6s-kEXA9FHptCSa2t3tUw'
 
 await parsePostViaLLM(url)
 

@@ -2,7 +2,10 @@ import { debug } from '../utils'
 import { DEFAULT_WECHAT_FAKE_ID, WECHAT_TOKEN, WECHAT_COOKIE, USER_AGENT } from '../constants'
 
 class WeChat {
-  constructor(private readonly token = WECHAT_TOKEN, private readonly cookie = WECHAT_COOKIE) {}
+  constructor(
+    private readonly token = WECHAT_TOKEN,
+    private readonly cookie = WECHAT_COOKIE,
+  ) {}
 
   get headers() {
     return {
@@ -69,21 +72,23 @@ class WeChat {
 
     const isOK = data?.base_resp?.ret === 0
 
-    debug('app_msg_cnt', data?.app_msg_cnt)
-    debug('app_msg_list', data?.app_msg_list)
+    debug('app_msg_cnt', data?.app_msg_cnt || null)
+    debug('app_msg_list', data?.app_msg_list || null)
 
     debug(
       'app_msg_list title list',
-      `\n${data?.app_msg_list
-        ?.map((e, idx) => `${idx + 1}. ${e.title}`.replace(/<\/?em>/g, ''))
-        ?.join('\n')}`
+      `\n${
+        data?.app_msg_list
+          ?.map((e, idx) => `${idx + 1}. ${e.title}`.replace(/<\/?em>/g, ''))
+          ?.join('\n') || null
+      }`,
     )
 
     return {
       isOK: isOK,
       posts: data?.app_msg_list || [],
       count: data?.app_msg_cnt || 0,
-      error: isOK ? null : data?.base_resp?.err_msg ?? JSON.stringify(data?.base_resp || {}),
+      error: isOK ? null : (data?.base_resp?.err_msg ?? JSON.stringify(data?.base_resp || {})),
     }
   }
 }
