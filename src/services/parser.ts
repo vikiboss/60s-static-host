@@ -101,7 +101,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     }),
   }
 
-  const thirdApi = `https://google-ai.deno.dev/v1beta/models/${model}:generateContent?key=${apiKey}`
+  const thirdApi = `https://gemini.viki.moe/v1beta/models/${model}:generateContent?key=${apiKey}`
   const officialApi = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
   let response: { candidates: { content: { parts: { text: string }[] } }[] } | null = null
