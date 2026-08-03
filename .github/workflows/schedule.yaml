@@ -7,6 +7,10 @@ on:
         description: "Optional date in YYYY-MM-DD format (default: today)"
         required: false
         type: string
+      url:
+        description: "Optional data url"
+        required: false
+        type: string
   
   # schedule:
   #   # 北京时间 01:30-09:30 每小时运行一次 (UTC 17:30-01:30)
