@@ -57,6 +57,18 @@ jobs:
             echo "Using today's date (Shanghai timezone): $TARGET_DATE"
           fi
           echo "date=$TARGET_DATE" >> $GITHUB_OUTPUT
+      
+      - name: Determine target URL
+        id: url
+        run: |
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            TARGET_URL="${{ github.event.inputs.url }}"
+            echo "Using manually specified url: $TARGET_URL"
+          else
+            TARGET_URL=''
+            echo "No URL specified"
+          fi
+          echo "url=$TARGET_URL" >> $GITHUB_OUTPUT
 
       - name: Check if data already exists
         id: check-data
@@ -131,10 +143,11 @@ jobs:
         if: steps.check-data.outputs.exists == 'false'
         run: |
           TARGET_DATE="${{ steps.date.outputs.date }}"
-          echo "🚀 Starting data fetch for $TARGET_DATE"
+          TARGET_URL="${{ steps.url.outputs.url }}"
+          echo "🚀 Starting data fetch for $TARGET_DATE or $TARGET_URL"
 
-          # 始终传递日期参数以保持一致性
-          bun run update --date="$TARGET_DATE"
+          # 始终传递日期和 URL 参数以保持一致性
+          bun run update --date="$TARGET_DATE" --url="$TARGET_URL"
 
           echo "✅ Data fetch completed"
 
