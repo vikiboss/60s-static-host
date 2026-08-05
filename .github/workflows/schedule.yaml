@@ -1,0 +1,201 @@
+name: schedule
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Optional date (YYYY-MM-DD)"
+        required: false
+        type: string
+      url:
+        description: "Optional data URL"
+        required: false
+        type: string
+  
+  # schedule:
+  #   # 北京时间 01:30-09:30 每小时运行一次 (UTC 17:30-01:30)
+  #   - cron: "30 17-23,0-1 * * *"
+
+  #   # 北京时间 00:00-10:00 每 10 分钟运行一次 (UTC 16:00-02:00)
+  #   - cron: "*/10 16-23,0-2 * * *"
+
+# 防止多个工作流同时运行，避免 git push 冲突
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# 最小权限原则
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TZ: Asia/Shanghai
+      WECHAT_TOKEN: ${{ secrets.WECHAT_TOKEN }}
+      WECHAT_COOKIE: ${{ secrets.WECHAT_COOKIE }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            TARGET_DATE="${{ github.event.inputs.date }}"
+            echo "Using manually specified date: $TARGET_DATE"
+          else
+            TARGET_DATE=$(date '+%Y-%m-%d')
+            echo "Using today's date (Shanghai timezone): $TARGET_DATE"
+          fi
+          echo "date=$TARGET_DATE" >> $GITHUB_OUTPUT
+      
+      - name: Determine target URL
+        id: url
+        run: |
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            TARGET_URL="${{ github.event.inputs.url }}"
+            echo "Using manually specified url: $TARGET_URL"
+          else
+            TARGET_URL=''
+            echo "No URL specified"
+          fi
+          echo "url=$TARGET_URL" >> $GITHUB_OUTPUT
+
+      - name: Check if data already exists
+        id: check-data
+        run: |
+          TARGET_DATE="${{ steps.date.outputs.date }}"
+          JSON_FILE="static/60s/${TARGET_DATE}.json"
+          PNG_FILE="static/images/${TARGET_DATE}.png"
+
+          if [ -f "$JSON_FILE" ] && [ -f "$PNG_FILE" ]; then
+            echo "✅ Data for $TARGET_DATE already exists, skipping update"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            if [ ! -f "$JSON_FILE" ]; then
+              echo "📄 Missing JSON file: $JSON_FILE"
+            fi
+            if [ ! -f "$PNG_FILE" ]; then
+              echo "🖼️  Missing PNG file: $PNG_FILE"
+            fi
+            echo "📥 Proceeding with data fetch and generation"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Bun
+        if: steps.check-data.outputs.exists == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Cache Bun dependencies
+        if: steps.check-data.outputs.exists == 'false'
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        if: steps.check-data.outputs.exists == 'false'
+        run: bun install --frozen-lockfile
+
+      - name: Cache Chromium
+        if: steps.check-data.outputs.exists == 'false'
+        id: cache-chromium
+        uses: actions/cache@v4
+        with:
+          path: .chromium
+          key: chromium-1181205-v2
+
+      - name: Download Chromium
+        if: steps.check-data.outputs.exists == 'false' && steps.cache-chromium.outputs.cache-hit != 'true'
+        run: |
+          echo "📦 Downloading Chromium..."
+          mkdir -p .chromium
+
+          # 下载并重试最多 3 次
+          for i in {1..3}; do
+            if curl -fsSL https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1181205/chrome-linux.zip -o chrome-linux.zip; then
+              echo "✅ Download completed"
+              break
+            else
+              echo "⚠️  Download attempt $i failed"
+              [ $i -lt 3 ] && sleep 5
+            fi
+          done
+
+          unzip -o chrome-linux.zip -d .chromium
+          rm chrome-linux.zip
+          echo "✅ Chromium installed successfully"
+
+      - name: Fetch data & Render image
+        if: steps.check-data.outputs.exists == 'false'
+        run: |
+          TARGET_DATE="${{ steps.date.outputs.date }}"
+          TARGET_URL="${{ steps.url.outputs.url }}"
+          echo "🚀 Starting data fetch for $TARGET_DATE or $TARGET_URL"
+
+          # 始终传递日期和 URL 参数以保持一致性
+          bun run update --date="$TARGET_DATE" --url="$TARGET_URL"
+
+          echo "✅ Data fetch completed"
+
+      - name: Commit and push changes
+        if: steps.check-data.outputs.exists == 'false'
+        run: |
+          TARGET_DATE="${{ steps.date.outputs.date }}"
+
+          # Configure git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Stage all changes
+          git add -A
+
+          # Check if there are changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "📝 Committing changes for $TARGET_DATE"
+            git commit -m "chore: [bot] update $TARGET_DATE data"
+
+            echo "⬆️  Pushing to remote..."
+            git push
+
+            echo "✅ Changes pushed successfully"
+          else
+            echo "ℹ️  No changes to commit"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          TARGET_DATE="${{ steps.date.outputs.date || 'N/A' }}"
+          DATA_EXISTS="${{ steps.check-data.outputs.exists || 'unknown' }}"
+          JOB_STATUS="${{ job.status }}"
+
+          echo "### Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Date**: $TARGET_DATE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Job Status**: $JOB_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$DATA_EXISTS" = "true" ]; then
+            echo "✅ **Result**: Data already exists, skipped update" >> $GITHUB_STEP_SUMMARY
+          elif [ "$JOB_STATUS" = "success" ]; then
+            echo "🎉 **Result**: Data generated and committed successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "$JOB_STATUS" = "failure" ]; then
+            echo "❌ **Result**: Workflow failed, check logs for details" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Result**: Workflow cancelled or unknown status" >> $GITHUB_STEP_SUMMARY
+          fi
