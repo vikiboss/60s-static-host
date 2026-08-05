@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: "Optional date in YYYY-MM-DD format (default: today)"
+        description: "Optional date (YYYY-MM-DD)"
         required: false
         type: string
       url:
-        description: "Optional data url"
+        description: "Optional data URL"
         required: false
         type: string
   
