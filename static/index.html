@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>每天 60s 读懂世界 - 每日新闻</title>
+    <meta name="description" content="每天60秒读懂世界 - 每日新闻精选" />
+    <meta name="theme-color" content="#fef3c7" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <!-- Tailwind CSS Play CDN (稳定且不会被拦截) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      /* 系统默认字体优先级 */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'Helvetica Neue',
+          Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* 毛笔字效果 */
+      .brush-text {
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        letter-spacing: 0.15em;
+      }
+
+      /* 印章效果 */
+      .seal {
+        writing-mode: vertical-rl;
+        text-orientation: upright;
+        border: 2px solid currentColor;
+        padding: 0.25rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+      }
+
+      /* 平滑滚动 */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      /* 日期输入样式 */
+      input[type='date']::-webkit-calendar-picker-indicator {
+        filter: sepia(1) hue-rotate(10deg) saturate(1.5);
+        cursor: pointer;
+      }
+
+      /* 加载动画 */
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-in {
+        animation: fade-in 0.5s ease-out;
+      }
+
+      /* 装饰性边框 */
+      .decorative-border {
+        position: relative;
+      }
+
+      .decorative-border::before,
+      .decorative-border::after {
+        content: '❋';
+        position: absolute;
+        color: rgb(251 191 36 / 0.4);
+        font-size: 0.75rem;
+      }
+
+      .decorative-border::before {
+        top: 0;
+        left: 0;
+      }
+
+      .decorative-border::after {
+        bottom: 0;
+        right: 0;
+      }
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-amber-50 via-stone-50 to-amber-100 min-h-screen">
+    <!-- 背景装饰 -->
+    <div class="fixed inset-0 opacity-5 pointer-events-none">
+      <div class="absolute top-20 left-10 w-32 h-32 border-2 border-amber-400 rounded-full"></div>
+      <div class="absolute top-40 right-20 w-24 h-24 border border-stone-400 rounded-full"></div>
+      <div class="absolute bottom-32 left-1/4 w-16 h-16 border-2 border-amber-300"></div>
+      <div
+        class="absolute bottom-20 right-1/3 w-20 h-20 border border-stone-300 transform rotate-45"
+      ></div>
+    </div>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-4 py-8 md:py-12">
+      <!-- 报头 -->
+      <header class="text-center mb-8 md:mb-12 fade-in">
+        <div class="inline-block relative">
+          <!-- 顶部装饰线 -->
+          <div class="flex items-center justify-center mb-4 gap-2">
+            <div
+              class="w-16 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+            ></div>
+            <div class="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+            <div
+              class="w-16 h-px bg-gradient-to-l from-transparent via-amber-400 to-transparent"
+            ></div>
+          </div>
+
+          <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-stone-800 brush-text mb-3">
+            每天
+            <span class="text-amber-700">60s</span>
+            读懂世界
+          </h1>
+
+          <p class="text-base md:text-lg text-stone-600 tracking-widest font-light mb-4">
+            每日新闻精选 · 多源托管 · 开放接口
+          </p>
+
+          <!-- 日期和状态 -->
+          <div class="flex items-center justify-center gap-4 text-sm text-stone-500">
+            <span id="currentDate" class="tracking-wide"></span>
+            <span class="text-amber-400">❋</span>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>服务运行中</span>
+            </div>
+          </div>
+
+          <!-- 底部装饰线 -->
+          <div class="flex items-center justify-center mt-4 gap-2">
+            <div
+              class="w-16 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+            ></div>
+            <div class="w-1 h-1 bg-amber-400 rounded-full"></div>
+            <div
+              class="w-16 h-px bg-gradient-to-l from-transparent via-amber-400 to-transparent"
+            ></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 主内容区 -->
+      <div class="grid grid-cols-1 gap-6 md:gap-8 mb-8">
+        <!-- 今日新闻预览（最重要，放在最前） -->
+        <section
+          class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-stone-200/60 p-6 md:p-8 decorative-border fade-in"
+          style="animation-delay: 0.1s"
+        >
+          <!-- 标题栏 + 日期选择器 -->
+          <div
+            class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-stone-200/60"
+          >
+            <div class="flex items-center gap-3">
+              <div class="seal text-amber-700 text-xs bg-amber-50">今 日</div>
+              <h2 class="text-2xl md:text-3xl font-semibold text-stone-800 brush-text">新闻预览</h2>
+            </div>
+
+            <!-- 日期选择器 -->
+            <div class="flex flex-wrap gap-2">
+              <input
+                type="date"
+                id="dateInput"
+                onchange="updateButtonStates(); loadData();"
+                class="px-3 py-2 bg-amber-50/50 border border-stone-300 rounded-lg text-stone-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
+              />
+              <button
+                id="prevBtn"
+                onclick="adjustDate(-1)"
+                class="px-3 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg text-sm font-medium transition-all"
+                title="前一天"
+              >
+                ←
+              </button>
+              <button
+                id="nextBtn"
+                onclick="adjustDate(1)"
+                class="px-3 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-stone-200"
+                title="后一天"
+              >
+                →
+              </button>
+              <button
+                onclick="setToday()"
+                class="px-3 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+                title="跳转到今天"
+              >
+                今天
+              </button>
+            </div>
+          </div>
+
+          <!-- 预览容器 -->
+          <div id="previewContainer" class="min-h-48"></div>
+        </section>
+
+        <!-- API 接口说明 -->
+        <section
+          class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-stone-200/60 p-6 md:p-8 decorative-border fade-in"
+          style="animation-delay: 0.2s"
+        >
+          <div class="flex items-center gap-3 mb-6 pb-4 border-b border-stone-200/60">
+            <div class="seal text-amber-700 text-xs bg-amber-50">接 口</div>
+            <h2 class="text-2xl md:text-3xl font-semibold text-stone-800 brush-text">API 端点</h2>
+          </div>
+
+          <div class="space-y-6">
+            <!-- JSON 数据端点 -->
+            <div>
+              <h3 class="text-sm font-semibold text-stone-700 mb-3">JSON 数据:</h3>
+              <div class="space-y-3">
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://60s-static.viki.moe/60s/[date].json
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://60s-static.viki.moe/60s/', '.json')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://cdn.jsdelivr.net/gh/vikiboss/60s-static-host@main/static/60s/[date].json
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://cdn.jsdelivr.net/gh/vikiboss/60s-static-host@main/static/60s/', '.json')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://cdn.jsdmirror.com/gh/vikiboss/60s-static-host@main/static/60s/[date].json
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://cdn.jsdmirror.com/gh/vikiboss/60s-static-host@main/static/60s/', '.json')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PNG 图片端点 -->
+            <div>
+              <h3 class="text-sm font-semibold text-stone-700 mb-3">PNG 图片:</h3>
+              <div class="space-y-3">
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://60s-static.viki.moe/images/[date].png
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://60s-static.viki.moe/images/', '.png')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://cdn.jsdelivr.net/gh/vikiboss/60s-static-host@main/static/images/[date].png
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://cdn.jsdelivr.net/gh/vikiboss/60s-static-host@main/static/images/', '.png')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-amber-50/50 rounded-lg p-4 border border-amber-200/60">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <code class="text-xs md:text-sm text-amber-800 break-all font-mono">
+                      https://cdn.jsdmirror.com/gh/vikiboss/60s-static-host@main/static/images/[date].png
+                    </code>
+                    <button
+                      onclick="copyEndpoint('https://cdn.jsdmirror.com/gh/vikiboss/60s-static-host@main/static/images/', '.png')"
+                      class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      复制
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p
+            class="mt-6 text-sm text-stone-600 bg-stone-50/50 rounded-lg p-4 border-l-4 border-amber-400"
+          >
+            <span class="font-semibold text-amber-700">使用说明：</span>
+            将
+            <code class="px-2 py-1 bg-amber-100 rounded text-amber-800">[date]</code>
+            替换为日期，格式为
+            <code class="px-2 py-1 bg-amber-100 rounded text-amber-800">YYYY-MM-DD</code>
+            ， 例如
+            <code class="px-2 py-1 bg-amber-100 rounded text-amber-800">2025-10-24</code>
+          </p>
+        </section>
+
+        <!-- 数据格式说明 -->
+        <section
+          class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-stone-200/60 p-6 md:p-8 decorative-border fade-in"
+          style="animation-delay: 0.3s"
+        >
+          <div class="flex items-center gap-3 mb-6 pb-4 border-b border-stone-200/60">
+            <div class="seal text-amber-700 text-xs bg-amber-50">格 式</div>
+            <h2 class="text-2xl md:text-3xl font-semibold text-stone-800 brush-text">数据格式</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">date</code>
+                <p class="text-sm text-stone-600 mt-1">日期（YYYY-MM-DD）</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">news</code>
+                <p class="text-sm text-stone-600 mt-1">新闻数组（约15条）</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">cover</code>
+                <p class="text-sm text-stone-600 mt-1">封面图片链接</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">image</code>
+                <p class="text-sm text-stone-600 mt-1">生成的图片链接</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">tip</code>
+                <p class="text-sm text-stone-600 mt-1">每日金句</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">link</code>
+                <p class="text-sm text-stone-600 mt-1">原文链接</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">created</code>
+                <p class="text-sm text-stone-600 mt-1">创建时间（YYYY-MM-DD HH:mm:ss）</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">updated</code>
+                <p class="text-sm text-stone-600 mt-1">更新时间（YYYY-MM-DD HH:mm:ss）</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">created_at</code>
+                <p class="text-sm text-stone-600 mt-1">创建时间戳（毫秒）</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-3 bg-amber-50/30 rounded-lg">
+              <div class="w-2 h-2 bg-amber-400 rounded-full mt-2"></div>
+              <div>
+                <code class="text-amber-700 font-semibold">updated_at</code>
+                <p class="text-sm text-stone-600 mt-1">更新时间戳（毫秒）</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 页脚 -->
+      <footer
+        class="text-center py-8 text-stone-600 space-y-3 fade-in"
+        style="animation-delay: 0.4s"
+      >
+        <div class="flex items-center justify-center gap-2 mb-3">
+          <div
+            class="w-12 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+          ></div>
+          <div class="w-1 h-1 bg-amber-400 rounded-full"></div>
+          <div
+            class="w-12 h-px bg-gradient-to-l from-transparent via-amber-400 to-transparent"
+          ></div>
+        </div>
+
+        <p class="text-sm tracking-wide">
+          <a
+            href="https://github.com/vikiboss/60s-static-host"
+            target="_blank"
+            class="text-amber-700 hover:text-amber-800 transition-colors"
+          >
+            GitHub
+          </a>
+          <span class="mx-3 text-amber-400">❋</span>
+          数据来源于公开网络
+          <span class="mx-3 text-amber-400">❋</span>
+          MIT License
+        </p>
+
+        <p class="text-xs text-stone-500 tracking-wider">自动更新于每日 00:00-10:00（UTC+8）</p>
+
+        <div class="flex items-center justify-center gap-2 mt-3">
+          <div
+            class="w-12 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+          ></div>
+          <div class="w-0.5 h-0.5 bg-amber-400 rounded-full"></div>
+          <div
+            class="w-12 h-px bg-gradient-to-l from-transparent via-amber-400 to-transparent"
+          ></div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      // 初始化
+      function init() {
+        const dateInput = document.getElementById('dateInput')
+        const today = new Date()
+        const todayStr = formatDate(today)
+
+        // 设置最大可选日期为今天
+        dateInput.max = todayStr
+
+        // 解析 URL 参数
+        const urlParams = new URLSearchParams(window.location.search)
+        const dateParam = urlParams.get('date')
+
+        // 验证日期参数格式
+        let initialDate = todayStr
+        if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+          const paramDate = new Date(dateParam)
+          const todayDate = new Date(todayStr)
+
+          // 确保日期参数不晚于今天
+          if (paramDate <= todayDate && !isNaN(paramDate.getTime())) {
+            initialDate = dateParam
+          }
+        }
+
+        // 设置日期输入框的值
+        dateInput.value = initialDate
+
+        // 显示顶部日期
+        const displayDate = new Date(initialDate)
+        updateHeaderDate(displayDate)
+
+        // 更新按钮状态
+        updateButtonStates()
+
+        // 自动加载数据
+        loadData()
+      }
+
+      function formatDate(date) {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function updateHeaderDate(date) {
+        const year = date.getFullYear()
+        const month = date.getMonth() + 1
+        const day = date.getDate()
+        const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+        const weekDay = weekDays[date.getDay()]
+
+        document.getElementById(
+          'currentDate'
+        ).textContent = `${year}年${month}月${day}日 星期${weekDay}`
+      }
+
+      // 更新按钮状态
+      function updateButtonStates() {
+        const dateInput = document.getElementById('dateInput')
+        const selectedDate = dateInput.value
+        const today = formatDate(new Date())
+        const nextBtn = document.getElementById('nextBtn')
+
+        // 如果选中的日期是今天,禁用"后一天"按钮
+        if (selectedDate === today) {
+          nextBtn.disabled = true
+        } else {
+          nextBtn.disabled = false
+        }
+      }
+
+      // 设置为今天
+      function setToday() {
+        const today = new Date()
+        document.getElementById('dateInput').value = formatDate(today)
+        updateButtonStates()
+        loadData()
+      }
+
+      // 调整日期 (days: 正数向后, 负数向前)
+      function adjustDate(days) {
+        const dateInput = document.getElementById('dateInput')
+        const currentDate = new Date(dateInput.value || new Date())
+        currentDate.setDate(currentDate.getDate() + days)
+        dateInput.value = formatDate(currentDate)
+        updateButtonStates()
+        loadData()
+      }
+
+      async function loadData() {
+        const date = document.getElementById('dateInput').value
+        if (!date) {
+          alert('请选择日期')
+          return
+        }
+
+        // 更新 URL 参数,方便分享
+        const newUrl = new URL(window.location)
+        newUrl.searchParams.set('date', date)
+        window.history.replaceState({}, '', newUrl)
+
+        const container = document.getElementById('previewContainer')
+        container.innerHTML = '<div class="text-center py-12 text-stone-500">加载中...</div>'
+
+        try {
+          const jsonUrl = `https://60s-static.viki.moe/60s/${date}.json`
+          const imageUrl = `https://60s-static.viki.moe/images/${date}.png`
+
+          const response = await fetch(jsonUrl)
+          if (!response.ok) throw new Error('数据加载失败')
+
+          const data = await response.json()
+
+          container.innerHTML = `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                        <!-- 图片预览 -->
+                        <div class="order-1 lg:order-1">
+                            <div id="imageWrapper" class="bg-stone-50/50 rounded-lg p-4 border border-stone-200">
+                                <img
+                                    src="${imageUrl}"
+                                    alt="每日新闻图片"
+                                    class="w-full h-auto rounded shadow-lg"
+                                    onerror="this.parentElement.innerHTML='<div class=\\'text-center py-8 text-stone-400\\'>图片加载失败</div>'"
+                                    onload="document.getElementById('jsonContainer').style.height = document.getElementById('imageWrapper').offsetHeight + 'px'"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- JSON 数据 -->
+                        <div class="order-2 lg:order-2">
+                            <div id="jsonContainer" class="bg-stone-50/50 rounded-lg p-4 border border-stone-200 overflow-auto">
+                                <pre class="text-xs text-stone-700 font-mono leading-relaxed whitespace-pre-wrap break-all">${JSON.stringify(
+                                  data,
+                                  null,
+                                  2
+                                )}</pre>
+                            </div>
+                        </div>
+                    </div>
+                `
+        } catch (error) {
+          container.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                        <p class="text-red-700 mb-2">加载失败：${error.message}</p>
+                        <p class="text-sm text-red-600">该日期可能没有数据，请尝试其他日期</p>
+                    </div>
+                `
+        }
+      }
+
+      function copyEndpoint(prefix, suffix) {
+        const dateInput = document.getElementById('dateInput')
+        const date = dateInput.value
+
+        if (!date) {
+          alert('请先选择日期')
+          dateInput.focus()
+          return
+        }
+
+        const url = prefix + date + suffix
+
+        navigator.clipboard
+          .writeText(url)
+          .then(() => {
+            // 创建提示元素
+            const toast = document.createElement('div')
+            toast.className =
+              'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in'
+            toast.innerHTML = `
+                    <div class="text-center">
+                        <div class="font-semibold mb-1">✓ 已复制到剪贴板</div>
+                        <div class="text-xs opacity-90 break-all max-w-md">${url}</div>
+                    </div>
+                `
+            document.body.appendChild(toast)
+
+            // 3秒后移除
+            setTimeout(() => {
+              toast.style.opacity = '0'
+              toast.style.transition = 'opacity 0.3s'
+              setTimeout(() => toast.remove(), 300)
+            }, 3000)
+          })
+          .catch(() => {
+            alert('复制失败，请手动复制：\n' + url)
+          })
+      }
+
+      // 页面加载完成后初始化
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init)
+      } else {
+        init()
+      }
+    </script>
+  </body>
+</html>
