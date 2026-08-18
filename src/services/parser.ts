@@ -97,7 +97,7 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     }),
   }
 
-  const model = 'gemini-3.6-flash'
+  const model = 'gemini-3.7-flash'
 
   debug('model', model)
 
