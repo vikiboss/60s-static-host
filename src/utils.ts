@@ -6,7 +6,6 @@ export function debug(name: string, ...values: unknown[]): void {
   console.log(
     `[${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}] [DEBUG] [${name}] => `,
     ...values,
-    `\n`
   )
 }
 
@@ -14,7 +13,7 @@ export function log(...values: unknown[]): void {
   console.log(
     `[${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}] [LOG]`,
     ...values,
-    `\n`
+    `\n`,
   )
 }
 

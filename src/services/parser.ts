@@ -4,9 +4,25 @@ import { USER_AGENT } from '../constants'
 
 import type { ParsedArticle } from './storage'
 
-const EMPTY_RESULT = { news: [], cover: '', image: '', tip: '', audio: { music: '', news: '' } }
+// ── 常量 ────────────────────────────────────────────────────────────────────
 
-const prompt = `
+const EMPTY_RESULT: ParsedArticle = { news: [], cover: '', tip: '' }
+
+const GEMINI_MODEL = 'gemini-3.6-flash'
+
+const GEMINI_ENDPOINTS = {
+  thirdParty: (key: string) =>
+    `https://gemini.viki.moe/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
+  official: (key: string) =>
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
+}
+
+// 重试延迟序列（毫秒）：3s → 10s → 30s → 60s
+const RETRY_DELAYS = [3_000, 10_000, 30_000, 60_000]
+
+// ── Prompt & Schema ─────────────────────────────────────────────────────────
+
+const SYSTEM_PROMPT = `
 # 你是一个 HTML 结构解析工具，能够熟练、完美的完成 HTML 内容解析和文本优化目标。接下来你需要解析一个微信公众号文章的 HTML，并按照要求通过指定的格式返回指定的内容。
 
 ## 返回 JSON 字段说明
@@ -42,7 +58,7 @@ const prompt = `
 }
 `
 
-const generationConfig = {
+const GENERATION_CONFIG = {
   responseMimeType: 'application/json',
   responseSchema: {
     type: 'object',
@@ -57,89 +73,75 @@ const generationConfig = {
   },
 }
 
-export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
-  debug('url', url)
+// ── 工具函数 ──────────────────────────────────────────────────────────────────
 
-  const apiKey = process.env.GEMINI_API_KEY
+interface GeminiResponse {
+  candidates?: { content: { parts: { text: string }[] } }[]
+}
 
-  if (!apiKey) {
-    console.error("No Gemini API key provided, can't use LLM to parse article.")
-    return EMPTY_RESULT
-  }
-
-  const html = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
-    .then(e => e.text())
-    .catch(() => fetch(url).then(e => e.text()))
-
-  const $ = load(html)
-
-  const mainHtml = $('#page-content').html() || ''
-
-  if (!mainHtml) {
-    console.error('No main HTML content found in the article.')
-    return EMPTY_RESULT
-  }
-
-  debug('main html length', mainHtml.length)
-
-  const timeStart = performance.now()
-
-  const options = {
-    method: 'POST',
-    headers: {
-      'x-goog-api-key': apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: prompt }] },
-      contents: [{ role: 'user', parts: [{ text: mainHtml }] }],
-      generationConfig,
-    }),
-  }
-
-  const model = 'gemini-3.7-flash'
-
-  debug('model', model)
-
-  const thirdApi = `https://gemini.viki.moe/v1beta/models/${model}:generateContent?key=${apiKey}`
-  const officialApi = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
-
-  let response: { candidates: { content: { parts: { text: string }[] } }[] } | null = null
-
+/** 带延迟序列的重试，每次失败后按 delays 顺序等待 */
+async function retry<T>(fn: () => Promise<T>, delays: number[]): Promise<T> {
   try {
-    response = (await (await fetch(thirdApi, options)).json()) as any
+    return await fn()
   } catch (error) {
-    console.warn('First Gemini API request failed, retrying official domain...', error)
+    if (delays.length === 0) throw error
+    console.warn('请求失败，重试中...', error)
+    const [wait = 1_000, ...rest] = delays
+    console.warn(`请求失败，${wait / 1000}s 后重试（剩余 ${rest.length + 1} 次）`, error)
+    await new Promise(resolve => setTimeout(resolve, wait))
+    return retry(fn, rest)
+  }
+}
 
+/** 构建 Gemini 请求体 */
+function buildRequestBody(html: string) {
+  return {
+    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: html }] }],
+    generationConfig: GENERATION_CONFIG,
+  }
+}
+
+/** 依次请求第三方、官方 API，任一成功即返回 */
+async function fetchGemini(apiKey: string, html: string): Promise<GeminiResponse> {
+  const body = buildRequestBody(html)
+
+  const options: RequestInit = {
+    method: 'POST',
+    headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  }
+
+  const endpoints = [
+    { name: 'official', url: GEMINI_ENDPOINTS.official(apiKey) },
+    { name: 'third-party', url: GEMINI_ENDPOINTS.thirdParty(apiKey) },
+  ]
+
+  for (const { name, url } of endpoints) {
     try {
-      response = (await (await fetch(officialApi, options)).json()) as any
+      console.log(`请求 ${name} API: ${url}`)
+      const res = await retry(
+        () => fetch(url, options).then(r => r.json() as Promise<GeminiResponse>),
+        RETRY_DELAYS,
+      )
+      if (res?.candidates) return res
+      debug(`${name} API 返回无 candidates`)
     } catch (error) {
-      console.error('Gemini API request failed:', error)
+      console.warn(`${name} API 请求失败:`, error)
     }
   }
 
-  if (!response) {
-    console.error('No response from Gemini API.')
-    return EMPTY_RESULT
-  }
+  return null as unknown as GeminiResponse
+}
 
-  debug(
-    'LLM request cost (ms)',
-    (Math.round((performance.now() - timeStart) * 1000) / 1000).toLocaleString('zh-CN'),
-  )
-
-  // log('Gemini response:', JSON.stringify(response, null, 2))
-
+/** 解析 LLM 返回的 JSON */
+function parseGeminiResponse(response: GeminiResponse): ParsedArticle {
   try {
-    debug('LLM response', response)
-
-    const data = JSON.parse(response?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
-
-    debug('LLM data', data)
+    const text = response?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const data = JSON.parse(text)
 
     if (!('news' in data) || !('cover' in data) || !('image' in data) || !('tip' in data)) {
       console.error('Invalid Gemini response format:', data)
-
       return EMPTY_RESULT
     }
 
@@ -150,7 +152,50 @@ export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
     }
   } catch {
     console.error('Failed to parse Gemini response:', response?.candidates?.[0]?.content?.parts)
-
     return EMPTY_RESULT
   }
+}
+
+// ── 主函数 ────────────────────────────────────────────────────────────────────
+
+export async function parsePostViaLLM(url: string): Promise<ParsedArticle> {
+  debug('url', url)
+
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    console.error("No Gemini API key provided, can't use LLM to parse article.")
+    return EMPTY_RESULT
+  }
+
+  // 获取文章 HTML
+  const html = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+    .then(r => r.text())
+    .catch(() => fetch(url).then(r => r.text()))
+
+  const mainHtml = load(html)('#page-content').html() || ''
+  if (!mainHtml) {
+    console.error('No main HTML content found in the article.')
+    return EMPTY_RESULT
+  }
+
+  debug('main html length', mainHtml.length)
+  debug('model', GEMINI_MODEL)
+
+  const timeStart = performance.now()
+
+  // 调用 Gemini API
+  const response = await fetchGemini(apiKey, mainHtml)
+
+  if (!response) {
+    console.error('No response from Gemini API.')
+    return EMPTY_RESULT
+  }
+
+  debug(
+    'LLM request cost (ms)',
+    (Math.round((performance.now() - timeStart) * 1000) / 1000).toLocaleString('zh-CN'),
+  )
+  debug('LLM response', response)
+
+  return parseGeminiResponse(response)
 }
