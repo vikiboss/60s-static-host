@@ -8,7 +8,7 @@ import type { ParsedArticle } from './storage'
 
 const EMPTY_RESULT: ParsedArticle = { news: [], cover: '', tip: '' }
 
-const GEMINI_MODEL = 'gemini-3.6-flash'
+const GEMINI_MODEL = 'gemini-3.8-flash'
 
 const GEMINI_ENDPOINTS = {
   thirdParty: (key: string) =>
@@ -125,7 +125,7 @@ async function fetchGemini(apiKey: string, html: string): Promise<GeminiResponse
         RETRY_DELAYS,
       )
       if (res?.candidates) return res
-      debug(`${name} API 返回无 candidates`)
+      debug(`${name} API 返回无 candidates`, res)
     } catch (error) {
       console.warn(`${name} API 请求失败:`, error)
     }
