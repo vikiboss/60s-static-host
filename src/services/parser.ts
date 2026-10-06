@@ -8,7 +8,7 @@ import type { ParsedArticle } from './storage'
 
 const EMPTY_RESULT: ParsedArticle = { news: [], cover: '', tip: '' }
 
-const GEMINI_MODEL = 'gemini-3.8-flash'
+const GEMINI_MODEL = 'gemini-3.6-flash'
 
 const GEMINI_ENDPOINTS = {
   thirdParty: (key: string) =>
