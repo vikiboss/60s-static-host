@@ -84,7 +84,7 @@ export function NewsCard({ data }: { data: NewsData }) {
                 {String(index + 1)}
               </div>
               <div className='flex-1'>
-                <p className='text-stone-800 text-base leading-6 tracking-wide break-words break-all'>
+                <p className='text-stone-800 text-base leading-6 tracking-wide break-all'>
                   {item}
                 </p>
               </div>
